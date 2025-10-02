@@ -75,7 +75,10 @@ BEGIN
 END;
 GO
 
-CREATE OR ALTER PROCEDURE dbo.procCatMedicosCon
+IF OBJECT_ID('dbo.procCatMedicosCon', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.procCatMedicosCon;
+GO
+CREATE PROCEDURE dbo.procCatMedicosCon
     @pId INT = NULL,
     @pResultado BIT OUTPUT,
     @pMsg VARCHAR(500) OUTPUT
@@ -109,7 +112,10 @@ BEGIN
 END;
 GO
 
-CREATE OR ALTER PROCEDURE dbo.procCatMedicosIns
+IF OBJECT_ID('dbo.procCatMedicosIns', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.procCatMedicosIns;
+GO
+CREATE PROCEDURE dbo.procCatMedicosIns
     @pPrimerNombre VARCHAR(100),
     @pSegundoNombre VARCHAR(100) = NULL,
     @pApellidoPaterno VARCHAR(100),
@@ -167,7 +173,10 @@ BEGIN
 END;
 GO
 
-CREATE OR ALTER PROCEDURE dbo.procCatMedicosUpd
+IF OBJECT_ID('dbo.procCatMedicosUpd', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.procCatMedicosUpd;
+GO
+CREATE PROCEDURE dbo.procCatMedicosUpd
     @pId INT,
     @pPrimerNombre VARCHAR(100),
     @pSegundoNombre VARCHAR(100) = NULL,
@@ -213,7 +222,10 @@ BEGIN
 END;
 GO
 
-CREATE OR ALTER PROCEDURE dbo.procCatMedicosDel
+IF OBJECT_ID('dbo.procCatMedicosDel', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.procCatMedicosDel;
+GO
+CREATE PROCEDURE dbo.procCatMedicosDel
     @pId INT,
     @pResultado BIT OUTPUT,
     @pMsg VARCHAR(500) OUTPUT
@@ -243,7 +255,10 @@ BEGIN
 END;
 GO
 
-CREATE OR ALTER PROCEDURE dbo.procCatPacientesCon
+IF OBJECT_ID('dbo.procCatPacientesCon', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.procCatPacientesCon;
+GO
+CREATE PROCEDURE dbo.procCatPacientesCon
     @pId INT = NULL,
     @pResultado BIT OUTPUT,
     @pMsg VARCHAR(500) OUTPUT
@@ -274,7 +289,10 @@ BEGIN
 END;
 GO
 
-CREATE OR ALTER PROCEDURE dbo.procCatPacientesIns
+IF OBJECT_ID('dbo.procCatPacientesIns', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.procCatPacientesIns;
+GO
+CREATE PROCEDURE dbo.procCatPacientesIns
     @pPrimerNombre VARCHAR(100),
     @pSegundoNombre VARCHAR(100) = NULL,
     @pApellidoPaterno VARCHAR(100),
@@ -323,7 +341,10 @@ BEGIN
 END;
 GO
 
-CREATE OR ALTER PROCEDURE dbo.procCatPacientesUpd
+IF OBJECT_ID('dbo.procCatPacientesUpd', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.procCatPacientesUpd;
+GO
+CREATE PROCEDURE dbo.procCatPacientesUpd
     @pId INT,
     @pPrimerNombre VARCHAR(100),
     @pSegundoNombre VARCHAR(100) = NULL,
@@ -363,7 +384,10 @@ BEGIN
 END;
 GO
 
-CREATE OR ALTER PROCEDURE dbo.procCatPacientesDel
+IF OBJECT_ID('dbo.procCatPacientesDel', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.procCatPacientesDel;
+GO
+CREATE PROCEDURE dbo.procCatPacientesDel
     @pId INT,
     @pResultado BIT OUTPUT,
     @pMsg VARCHAR(500) OUTPUT
@@ -393,7 +417,10 @@ BEGIN
 END;
 GO
 
-CREATE OR ALTER PROCEDURE dbo.procCatUsuariosCon
+IF OBJECT_ID('dbo.procCatUsuariosCon', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.procCatUsuariosCon;
+GO
+CREATE PROCEDURE dbo.procCatUsuariosCon
     @pId INT = NULL,
     @pResultado BIT OUTPUT,
     @pMsg VARCHAR(500) OUTPUT
@@ -422,7 +449,10 @@ BEGIN
 END;
 GO
 
-CREATE OR ALTER PROCEDURE dbo.procCatUsuariosIns
+IF OBJECT_ID('dbo.procCatUsuariosIns', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.procCatUsuariosIns;
+GO
+CREATE PROCEDURE dbo.procCatUsuariosIns
     @pCorreo VARCHAR(200),
     @pPassword VARCHAR(500),
     @pNombreCompleto VARCHAR(300),
@@ -468,7 +498,10 @@ BEGIN
 END;
 GO
 
-CREATE OR ALTER PROCEDURE dbo.procCatUsuariosUpd
+IF OBJECT_ID('dbo.procCatUsuariosUpd', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.procCatUsuariosUpd;
+GO
+CREATE PROCEDURE dbo.procCatUsuariosUpd
     @pId INT,
     @pCorreo VARCHAR(200),
     @pPassword VARCHAR(500),
@@ -506,7 +539,10 @@ BEGIN
 END;
 GO
 
-CREATE OR ALTER PROCEDURE dbo.procCatUsuariosDel
+IF OBJECT_ID('dbo.procCatUsuariosDel', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.procCatUsuariosDel;
+GO
+CREATE PROCEDURE dbo.procCatUsuariosDel
     @pId INT,
     @pResultado BIT OUTPUT,
     @pMsg VARCHAR(500) OUTPUT
@@ -536,7 +572,10 @@ BEGIN
 END;
 GO
 
-CREATE OR ALTER PROCEDURE dbo.procAuthLogin
+IF OBJECT_ID('dbo.procAuthLogin', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.procAuthLogin;
+GO
+CREATE PROCEDURE dbo.procAuthLogin
     @pCorreo VARCHAR(200),
     @pPassword VARCHAR(500),
     @pResultado BIT OUTPUT,
@@ -589,7 +628,10 @@ BEGIN
 END;
 GO
 
-CREATE OR ALTER PROCEDURE dbo.procConsultasCon
+IF OBJECT_ID('dbo.procConsultasCon', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.procConsultasCon;
+GO
+CREATE PROCEDURE dbo.procConsultasCon
     @pId INT = NULL,
     @pResultado BIT OUTPUT,
     @pMsg VARCHAR(500) OUTPUT
@@ -619,7 +661,10 @@ BEGIN
 END;
 GO
 
-CREATE OR ALTER PROCEDURE dbo.procConsultasIns
+IF OBJECT_ID('dbo.procConsultasIns', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.procConsultasIns;
+GO
+CREATE PROCEDURE dbo.procConsultasIns
     @pIdMedico INT,
     @pIdPaciente INT,
     @pSintomas VARCHAR(MAX) = NULL,
@@ -671,7 +716,10 @@ BEGIN
 END;
 GO
 
-CREATE OR ALTER PROCEDURE dbo.procConsultasUpd
+IF OBJECT_ID('dbo.procConsultasUpd', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.procConsultasUpd;
+GO
+CREATE PROCEDURE dbo.procConsultasUpd
     @pId INT,
     @pIdMedico INT,
     @pIdPaciente INT,
@@ -713,7 +761,10 @@ BEGIN
 END;
 GO
 
-CREATE OR ALTER PROCEDURE dbo.procConsultasDel
+IF OBJECT_ID('dbo.procConsultasDel', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.procConsultasDel;
+GO
+CREATE PROCEDURE dbo.procConsultasDel
     @pId INT,
     @pResultado BIT OUTPUT,
     @pMsg VARCHAR(500) OUTPUT
