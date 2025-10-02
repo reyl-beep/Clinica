@@ -1,83 +1,35 @@
 <template>
   <div class="dashboard" v-if="user">
-    <section class="welcome">
-      <div class="welcome__content">
-        <p class="eyebrow">Panel clínico</p>
-        <h1>Bienvenido, {{ primerNombre }}</h1>
-        <p>
-          Mantén el pulso de la operación de la clínica con indicadores claros y acciones rápidas.
-          Puedes personalizar esta vista para mostrar los módulos más relevantes.
-        </p>
+    <header class="dashboard__header">
+      <p class="dashboard__eyebrow">Panel clínico</p>
+      <h1>Hola, {{ primerNombre }}</h1>
+      <p class="dashboard__subtitle">
+        Nos alegra verte de nuevo. Selecciona uno de los menús principales para continuar con tus tareas del día.
+      </p>
+      <p class="dashboard__meta">Miembro desde {{ fechaCreacion }}</p>
+    </header>
 
-        <dl class="user-meta">
-          <div>
-            <dt>Correo</dt>
-            <dd>{{ user.correo }}</dd>
-          </div>
-          <div>
-            <dt>Rol asignado</dt>
-            <dd>{{ user.idMedico ? 'Médico asociado' : 'Administrador' }}</dd>
-          </div>
-          <div>
-            <dt>Miembro desde</dt>
-            <dd>{{ fechaCreacion }}</dd>
-          </div>
-          <div>
-            <dt>Estado</dt>
-            <dd :class="{ active: user.activo }">{{ user.activo ? 'Activo' : 'Inactivo' }}</dd>
-          </div>
-        </dl>
-
-        <div class="welcome__actions">
-          <RouterLink class="button ghost" :to="{ name: 'home' }">Ir al sitio</RouterLink>
-          <button class="button danger" type="button" @click="handleLogout">Cerrar sesión</button>
+    <section class="dashboard__menus">
+      <article class="menu-card" v-for="menu in mainMenus" :key="menu.title">
+        <div class="menu-card__header">
+          <h2>{{ menu.title }}</h2>
+          <p>{{ menu.description }}</p>
         </div>
-      </div>
-      <div class="welcome__insight">
-        <h2>Resumen del día</h2>
-        <ul>
-          <li>
-            <strong>12</strong>
-            Consultas agendadas
-          </li>
-          <li>
-            <strong>5</strong>
-            Pacientes nuevos
-          </li>
-          <li>
-            <strong>3</strong>
-            Seguimientos pendientes
+        <ul class="menu-card__actions">
+          <li v-for="action in menu.actions" :key="action.label">
+            <button type="button" class="menu-card__action">
+              <span class="menu-card__action-title">{{ action.label }}</span>
+              <span class="menu-card__action-hint">{{ action.hint }}</span>
+            </button>
           </li>
         </ul>
-      </div>
+      </article>
     </section>
 
-    <section class="widgets">
-      <article class="widget">
-        <h3>Consultas de hoy</h3>
-        <p>
-          Revisa las consultas programadas, asigna salas y verifica la disponibilidad de cada
-          médico.
-        </p>
-        <button type="button">Ver agenda</button>
-      </article>
-      <article class="widget">
-        <h3>Pacientes destacados</h3>
-        <p>
-          Mantente al tanto de los pacientes que requieren atención prioritaria o seguimiento
-          personalizado.
-        </p>
-        <button type="button">Ver pacientes</button>
-      </article>
-      <article class="widget">
-        <h3>Indicadores clínicos</h3>
-        <p>
-          Visualiza métricas clave como tiempos de espera, satisfacción y efectividad de
-          tratamientos.
-        </p>
-        <button type="button">Ver reportes</button>
-      </article>
-    </section>
+    <footer class="dashboard__footer">
+      <RouterLink class="button ghost" :to="{ name: 'home' }">Ir al sitio</RouterLink>
+      <button class="button danger" type="button" @click="handleLogout">Cerrar sesión</button>
+    </footer>
   </div>
 
   <div v-else class="empty-state">
@@ -92,8 +44,50 @@ import { computed } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 
+type MenuAction = {
+  label: string;
+  hint: string;
+};
+
+type MainMenu = {
+  title: string;
+  description: string;
+  actions: MenuAction[];
+};
+
 const router = useRouter();
 const { user, clearUser } = useAuthStore();
+
+const mainMenus: MainMenu[] = [
+  {
+    title: 'Gestión clínica',
+    description: 'Centraliza las consultas, pacientes y seguimiento médico en un solo lugar.',
+    actions: [
+      {
+        label: 'Consultas',
+        hint: 'Programa, revisa y da seguimiento a las citas.'
+      },
+      {
+        label: 'Pacientes',
+        hint: 'Actualiza expedientes y mantén la información de tus pacientes al día.'
+      }
+    ]
+  },
+  {
+    title: 'Administración',
+    description: 'Administra tu equipo y controla el acceso al sistema de la clínica.',
+    actions: [
+      {
+        label: 'Médicos',
+        hint: 'Gestiona el personal médico y sus especialidades.'
+      },
+      {
+        label: 'Usuarios del sistema',
+        hint: 'Define roles y permisos para cada miembro del equipo.'
+      }
+    ]
+  }
+];
 
 const primerNombre = computed(() => {
   const nombre = user.value?.nombreCompleto ?? '';
@@ -120,149 +114,118 @@ const handleLogout = async () => {
 
 <style scoped>
 .dashboard {
-  display: flex;
-  flex-direction: column;
-  gap: 3rem;
-}
-
-.welcome {
   display: grid;
   gap: 2rem;
-}
-
-@media (min-width: 1024px) {
-  .welcome {
-    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
-    gap: 3rem;
-    align-items: stretch;
-  }
-}
-
-.welcome__content {
+  padding: clamp(2rem, 5vw, 3rem);
   background: var(--surface-raised);
-  border-radius: 32px;
-  padding: clamp(2rem, 5vw, 3.2rem);
+  border-radius: 28px;
   box-shadow: var(--shadow-xl);
-  display: grid;
-  gap: 1.5rem;
 }
 
-.welcome__content p {
+.dashboard__header {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.dashboard__eyebrow {
   margin: 0;
-  color: var(--text-muted);
-}
-
-.user-meta {
-  display: grid;
-  gap: 1rem;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  margin: 0;
-}
-
-.user-meta div {
-  background: var(--surface-subtle);
-  border-radius: 20px;
-  padding: 1rem 1.25rem;
-  border: 1px solid var(--border-subtle);
-  display: grid;
-  gap: 0.35rem;
-}
-
-.user-meta dt {
+  font-size: 0.85rem;
+  font-weight: 600;
   text-transform: uppercase;
-  font-size: 0.75rem;
   letter-spacing: 0.12em;
   color: var(--text-muted);
 }
 
-.user-meta dd {
+.dashboard__header h1 {
   margin: 0;
-  font-weight: 600;
+  font-size: clamp(2rem, 6vw, 2.6rem);
+  font-weight: 700;
 }
 
-.user-meta dd.active {
-  color: var(--success-text);
-}
-
-.welcome__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.welcome__insight {
-  background: var(--surface-glass);
-  border-radius: 32px;
-  border: 1px solid var(--border-strong);
-  padding: clamp(2rem, 5vw, 2.8rem);
-  box-shadow: var(--shadow-lg);
-  display: grid;
-  gap: 1.25rem;
-  backdrop-filter: blur(14px);
-}
-
-.welcome__insight h2 {
+.dashboard__subtitle {
   margin: 0;
-  font-size: clamp(1.6rem, 3vw, 2rem);
+  color: var(--text-muted);
+  max-width: 52ch;
 }
 
-.welcome__insight ul {
+.dashboard__meta {
   margin: 0;
-  padding: 0;
-  list-style: none;
-  display: grid;
-  gap: 1rem;
+  font-size: 0.95rem;
+  color: var(--text-muted);
 }
 
-.welcome__insight li {
-  display: grid;
-  gap: 0.3rem;
-  font-weight: 500;
-}
-
-.welcome__insight strong {
-  font-size: 1.5rem;
-  color: var(--brand-primary);
-}
-
-.widgets {
+.dashboard__menus {
   display: grid;
   gap: 1.5rem;
 }
 
 @media (min-width: 900px) {
-  .widgets {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  .dashboard__menus {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-.widget {
-  background: var(--surface-raised);
+.menu-card {
+  background: var(--surface-base);
   border-radius: 24px;
-  padding: 2rem;
+  padding: clamp(1.5rem, 4vw, 2rem);
   border: 1px solid var(--border-subtle);
   box-shadow: var(--shadow-md);
   display: grid;
-  gap: 1rem;
+  gap: 1.5rem;
 }
 
-.widget h3 {
-  margin: 0;
+.menu-card__header h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.5rem;
 }
 
-.widget p {
+.menu-card__header p {
   margin: 0;
   color: var(--text-muted);
 }
 
-.widget button {
-  justify-self: start;
-  background: transparent;
-  border: none;
-  color: var(--brand-primary);
-  font-weight: 600;
-  cursor: pointer;
+.menu-card__actions {
+  margin: 0;
   padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.menu-card__action {
+  width: 100%;
+  text-align: left;
+  background: var(--surface-raised);
+  border: 1px solid transparent;
+  border-radius: 18px;
+  padding: 1rem 1.25rem;
+  display: grid;
+  gap: 0.35rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  cursor: pointer;
+}
+
+.menu-card__action:hover {
+  border-color: var(--brand-primary);
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+.menu-card__action-title {
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+.menu-card__action-hint {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.dashboard__footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
 .button {
@@ -322,4 +285,3 @@ const handleLogout = async () => {
   color: var(--text-muted);
 }
 </style>
-
