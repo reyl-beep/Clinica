@@ -37,6 +37,37 @@ app.MapPost("/api/demo", (DemoRequest request) =>
     });
 });
 
+var auth = app.MapGroup("/api/auth");
+auth.MapPost("/login", async (LoginRequest request, DatabaseService db) =>
+{
+    var resultado = await db.ExecuteAsync(
+        "procAuthLogin",
+        parameters =>
+        {
+            parameters.Add("@pCorreo", SqlDbType.VarChar, 200).Value = request.Correo;
+            parameters.Add("@pPassword", SqlDbType.VarChar, 500).Value = request.Password;
+        },
+        async reader =>
+        {
+            if (await reader.ReadAsync())
+            {
+                return new UsuarioDto
+                {
+                    Id = reader.GetInt32("Id"),
+                    Correo = reader.GetString("Correo"),
+                    NombreCompleto = reader.GetString("NombreCompleto"),
+                    IdMedico = reader.GetNullableInt32("IdMedico"),
+                    Activo = reader.GetBoolean("Activo"),
+                    FechaCreacion = reader.GetDateTime("FechaCreacion")
+                };
+            }
+
+            return null;
+        });
+
+    return Results.Ok(resultado);
+});
+
 var medicos = app.MapGroup("/api/medicos");
 medicos.MapGet(string.Empty, async (DatabaseService db) =>
 {

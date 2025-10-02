@@ -536,6 +536,59 @@ BEGIN
 END;
 GO
 
+CREATE OR ALTER PROCEDURE dbo.procAuthLogin
+    @pCorreo VARCHAR(200),
+    @pPassword VARCHAR(500),
+    @pResultado BIT OUTPUT,
+    @pMsg VARCHAR(500) OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    BEGIN TRY
+        DECLARE @Usuarios TABLE
+        (
+            Id INT,
+            Correo VARCHAR(200),
+            NombreCompleto VARCHAR(300),
+            IdMedico INT NULL,
+            Activo BIT,
+            FechaCreacion DATETIME
+        );
+
+        INSERT INTO @Usuarios
+        SELECT TOP 1
+            Id,
+            Correo,
+            NombreCompleto,
+            IdMedico,
+            Activo,
+            FechaCreacion
+        FROM dbo.CatUsuarios
+        WHERE Correo = @pCorreo
+          AND Password = @pPassword
+          AND Activo = 1;
+
+        IF EXISTS (SELECT 1 FROM @Usuarios)
+        BEGIN
+            SET @pResultado = 1;
+            SET @pMsg = 'Inicio de sesión exitoso.';
+        END
+        ELSE
+        BEGIN
+            SET @pResultado = 0;
+            SET @pMsg = 'Credenciales inválidas.';
+        END
+
+        SELECT * FROM @Usuarios;
+    END TRY
+    BEGIN CATCH
+        SET @pResultado = 0;
+        SET @pMsg = ERROR_MESSAGE();
+    END CATCH
+END;
+GO
+
 CREATE OR ALTER PROCEDURE dbo.procConsultasCon
     @pId INT = NULL,
     @pResultado BIT OUTPUT,
