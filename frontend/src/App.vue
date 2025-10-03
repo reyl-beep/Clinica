@@ -21,15 +21,26 @@
       </RouterLink>
 
       <nav class="nav">
-        <RouterLink
-          v-for="item in navigation"
-          :key="item.name"
-          class="nav__link"
-          :class="{ 'is-active': activeRoute === item.name }"
-          :to="{ name: item.name }"
-        >
-          {{ item.label }}
-        </RouterLink>
+        <template v-for="item in navigationItems">
+          <RouterLink
+            v-if="item.type === 'link'"
+            :key="item.label"
+            class="nav__link"
+            :class="{ 'is-active': activeRoute === item.name }"
+            :to="{ name: item.name }"
+          >
+            {{ item.label }}
+          </RouterLink>
+          <button
+            v-else
+            :key="item.label"
+            class="nav__link nav__link--action"
+            type="button"
+            @click="handleLogout"
+          >
+            {{ item.label }}
+          </button>
+        </template>
       </nav>
 
       <button class="theme-toggle" type="button" @click="toggleTheme" :aria-label="themeAriaLabel">
@@ -79,22 +90,38 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
-import { RouterLink, RouterView, useRoute } from 'vue-router';
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
+import { useAuthStore } from '@/stores/auth';
 
 type Theme = 'light' | 'dark';
 
 const route = useRoute();
+const router = useRouter();
+const { isAuthenticated, clearUser } = useAuthStore();
 const theme = ref<Theme>('light');
 const isDark = computed(() => theme.value === 'dark');
 const themeStorageKey = 'clinica-del-rey:theme';
 const currentYear = new Date().getFullYear();
 const activeRoute = computed(() => (route.name ?? '').toString());
 
-const navigation = [
-  { name: 'home', label: 'Inicio' },
-  { name: 'login', label: 'Iniciar sesión' },
-  { name: 'dashboard', label: 'Dashboard' }
-] as const;
+type NavigationItem =
+  | { type: 'link'; name: string; label: string }
+  | { type: 'action'; label: string };
+
+const navigationItems = computed<NavigationItem[]>(() => {
+  if (!isAuthenticated.value) {
+    return [
+      { type: 'link', name: 'home', label: 'Inicio' },
+      { type: 'link', name: 'login', label: 'Iniciar sesión' }
+    ];
+  }
+
+  return [
+    { type: 'link', name: 'home', label: 'Inicio' },
+    { type: 'link', name: 'dashboard', label: 'Dashboard' },
+    { type: 'action', label: 'Cerrar sesión' }
+  ];
+});
 
 const applyTheme = (value: Theme) => {
   if (typeof document !== 'undefined') {
@@ -130,6 +157,11 @@ onMounted(() => {
 watch(theme, value => {
   applyTheme(value);
 });
+
+const handleLogout = async () => {
+  clearUser();
+  await router.push({ name: 'home' });
+};
 </script>
 
 <style scoped>
@@ -213,6 +245,12 @@ watch(theme, value => {
   font-weight: 600;
   color: var(--text-muted);
   transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.nav__link--action {
+  border: none;
+  background: none;
+  cursor: pointer;
 }
 
 .nav__link:hover {

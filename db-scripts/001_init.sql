@@ -277,7 +277,8 @@ BEGIN
             Activo,
             FechaCreacion
         FROM dbo.CatPacientes
-        WHERE @pId IS NULL OR Id = @pId;
+        WHERE @pId IS NULL OR Id = @pId
+        ORDER BY ApellidoPaterno, ApellidoMaterno, PrimerNombre, SegundoNombre;
 
         SET @pResultado = 1;
         SET @pMsg = 'Consulta de pacientes realizada correctamente.';
