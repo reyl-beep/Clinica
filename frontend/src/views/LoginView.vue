@@ -67,12 +67,13 @@
 
 <script setup lang="ts">
 import { reactive, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { login } from '@/services/api';
 import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
-const { setUser } = useAuthStore();
+const route = useRoute();
+const { setSession } = useAuthStore();
 
 const form = reactive({
   correo: '',
@@ -98,8 +99,18 @@ const handleSubmit = async () => {
     });
 
     if (resultado.value && resultado.data) {
-      setUser(resultado.data);
-      await router.push({ name: 'dashboard' });
+      setSession(resultado.data);
+
+      const redirectTarget =
+        typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/')
+          ? route.query.redirect
+          : null;
+
+      if (redirectTarget) {
+        await router.push(redirectTarget);
+      } else {
+        await router.push({ name: 'dashboard' });
+      }
     } else {
       errorMessage.value = resultado.message || 'No fue posible iniciar sesión.';
     }

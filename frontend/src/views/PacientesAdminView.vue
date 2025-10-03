@@ -112,12 +112,15 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import {
+  ApiAuthError,
   createPaciente,
   deletePaciente,
   fetchPacientes,
   updatePaciente
 } from '@/services/api';
+import { useAuthStore } from '@/stores/auth';
 import type { Paciente } from '@/types/Paciente';
 
 interface PacienteForm {
@@ -128,6 +131,10 @@ interface PacienteForm {
   apellidoMaterno: string;
   telefono: string;
 }
+
+const router = useRouter();
+const route = useRoute();
+const { clearSession } = useAuthStore();
 
 const pacientes = ref<Paciente[]>([]);
 const loading = ref(false);
@@ -156,6 +163,18 @@ const nombrePaciente = (paciente: Paciente) =>
     .filter(Boolean)
     .join(' ');
 
+async function handleAuthError(error: unknown): Promise<boolean> {
+  if (error instanceof ApiAuthError) {
+    feedback.value = error.message;
+    feedbackSuccess.value = false;
+    clearSession();
+    await router.push({ name: 'login', query: { redirect: route.fullPath } });
+    return true;
+  }
+
+  return false;
+}
+
 function resetForm() {
   form.id = null;
   form.primerNombre = '';
@@ -177,16 +196,30 @@ function populateForm(paciente: Paciente) {
 
 async function loadPacientes() {
   loading.value = true;
-  const resultado = await fetchPacientes();
+  feedback.value = '';
 
-  if (resultado.value && resultado.data) {
-    pacientes.value = resultado.data;
-  } else {
-    feedback.value = resultado.message;
+  try {
+    const resultado = await fetchPacientes();
+
+    if (resultado.value && resultado.data) {
+      pacientes.value = resultado.data;
+    } else {
+      feedback.value = resultado.message;
+      feedbackSuccess.value = false;
+    }
+  } catch (error) {
+    if (await handleAuthError(error)) {
+      return;
+    }
+
+    feedback.value =
+      error instanceof Error
+        ? error.message
+        : 'No fue posible cargar la lista de pacientes. Inténtalo más tarde.';
     feedbackSuccess.value = false;
+  } finally {
+    loading.value = false;
   }
-
-  loading.value = false;
 }
 
 function buildPayload() {
@@ -203,20 +236,33 @@ async function handleSubmit() {
   submitting.value = true;
   feedback.value = '';
 
-  const payload = buildPayload();
-  const resultado = isEditing.value && form.id !== null
-    ? await updatePaciente(form.id, payload)
-    : await createPaciente(payload);
+  try {
+    const payload = buildPayload();
+    const resultado =
+      isEditing.value && form.id !== null
+        ? await updatePaciente(form.id, payload)
+        : await createPaciente(payload);
 
-  feedback.value = resultado.message;
-  feedbackSuccess.value = resultado.value;
+    feedback.value = resultado.message;
+    feedbackSuccess.value = resultado.value;
 
-  if (resultado.value) {
-    await loadPacientes();
-    resetForm();
+    if (resultado.value) {
+      await loadPacientes();
+      resetForm();
+    }
+  } catch (error) {
+    if (await handleAuthError(error)) {
+      return;
+    }
+
+    feedback.value =
+      error instanceof Error
+        ? error.message
+        : 'No fue posible guardar la información del paciente.';
+    feedbackSuccess.value = false;
+  } finally {
+    submitting.value = false;
   }
-
-  submitting.value = false;
 }
 
 function startEdit(paciente: Paciente) {
@@ -226,15 +272,28 @@ function startEdit(paciente: Paciente) {
 
 async function handleDeactivate(id: number) {
   submitting.value = true;
-  const resultado = await deletePaciente(id);
-  feedback.value = resultado.message;
-  feedbackSuccess.value = resultado.value;
 
-  if (resultado.value) {
-    await loadPacientes();
+  try {
+    const resultado = await deletePaciente(id);
+    feedback.value = resultado.message;
+    feedbackSuccess.value = resultado.value;
+
+    if (resultado.value) {
+      await loadPacientes();
+    }
+  } catch (error) {
+    if (await handleAuthError(error)) {
+      return;
+    }
+
+    feedback.value =
+      error instanceof Error
+        ? error.message
+        : 'No fue posible actualizar el estado del paciente.';
+    feedbackSuccess.value = false;
+  } finally {
+    submitting.value = false;
   }
-
-  submitting.value = false;
 }
 
 onMounted(() => {

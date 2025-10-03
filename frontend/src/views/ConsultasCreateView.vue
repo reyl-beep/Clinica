@@ -83,7 +83,9 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
-import { createConsulta, fetchMedicos, fetchPacientes } from '@/services/api';
+import { useRoute, useRouter } from 'vue-router';
+import { ApiAuthError, createConsulta, fetchMedicos, fetchPacientes } from '@/services/api';
+import { useAuthStore } from '@/stores/auth';
 import type { Medico } from '@/types/Medico';
 import type { Paciente } from '@/types/Paciente';
 
@@ -95,6 +97,10 @@ interface ConsultaForm {
   diagnostico: string;
   fechaConsulta: string;
 }
+
+const router = useRouter();
+const route = useRoute();
+const { clearSession } = useAuthStore();
 
 const medicos = ref<Medico[]>([]);
 const pacientes = ref<Paciente[]>([]);
@@ -134,30 +140,54 @@ const nombrePaciente = (paciente: Paciente) =>
 
 const isFormValid = computed(() => !!form.idMedico && !!form.idPaciente);
 
+async function handleAuthError(error: unknown): Promise<boolean> {
+  if (error instanceof ApiAuthError) {
+    feedback.value = error.message;
+    feedbackSuccess.value = false;
+    clearSession();
+    await router.push({ name: 'login', query: { redirect: route.fullPath } });
+    return true;
+  }
+
+  return false;
+}
+
 async function loadCatalogs() {
   loadingCatalogs.value = true;
   feedback.value = '';
 
-  const [medicosResultado, pacientesResultado] = await Promise.all([
-    fetchMedicos(),
-    fetchPacientes()
-  ]);
+  try {
+    const [medicosResultado, pacientesResultado] = await Promise.all([
+      fetchMedicos(),
+      fetchPacientes()
+    ]);
 
-  if (medicosResultado.value && medicosResultado.data) {
-    medicos.value = medicosResultado.data.filter(medico => medico.activo);
-  } else {
-    feedback.value = medicosResultado.message;
+    if (medicosResultado.value && medicosResultado.data) {
+      medicos.value = medicosResultado.data.filter(medico => medico.activo);
+    } else {
+      feedback.value = medicosResultado.message;
+      feedbackSuccess.value = false;
+    }
+
+    if (pacientesResultado.value && pacientesResultado.data) {
+      pacientes.value = pacientesResultado.data.filter(paciente => paciente.activo);
+    } else if (!feedback.value) {
+      feedback.value = pacientesResultado.message;
+      feedbackSuccess.value = false;
+    }
+  } catch (error) {
+    if (await handleAuthError(error)) {
+      return;
+    }
+
+    feedback.value =
+      error instanceof Error
+        ? error.message
+        : 'No fue posible cargar el catálogo de médicos y pacientes.';
     feedbackSuccess.value = false;
+  } finally {
+    loadingCatalogs.value = false;
   }
-
-  if (pacientesResultado.value && pacientesResultado.data) {
-    pacientes.value = pacientesResultado.data.filter(paciente => paciente.activo);
-  } else if (!feedback.value) {
-    feedback.value = pacientesResultado.message;
-    feedbackSuccess.value = false;
-  }
-
-  loadingCatalogs.value = false;
 }
 
 function resetForm() {
@@ -179,23 +209,35 @@ async function handleSubmit() {
   submitting.value = true;
   feedback.value = '';
 
-  const resultado = await createConsulta({
-    idMedico: Number(form.idMedico),
-    idPaciente: Number(form.idPaciente),
-    sintomas: form.sintomas || null,
-    recomendaciones: form.recomendaciones || null,
-    diagnostico: form.diagnostico || null,
-    fechaConsulta: form.fechaConsulta ? new Date(form.fechaConsulta).toISOString() : null
-  });
+  try {
+    const resultado = await createConsulta({
+      idMedico: Number(form.idMedico),
+      idPaciente: Number(form.idPaciente),
+      sintomas: form.sintomas || null,
+      recomendaciones: form.recomendaciones || null,
+      diagnostico: form.diagnostico || null,
+      fechaConsulta: form.fechaConsulta ? new Date(form.fechaConsulta).toISOString() : null
+    });
 
-  feedback.value = resultado.message;
-  feedbackSuccess.value = resultado.value;
+    feedback.value = resultado.message;
+    feedbackSuccess.value = resultado.value;
 
-  if (resultado.value) {
-    resetForm();
+    if (resultado.value) {
+      resetForm();
+    }
+  } catch (error) {
+    if (await handleAuthError(error)) {
+      return;
+    }
+
+    feedback.value =
+      error instanceof Error
+        ? error.message
+        : 'No fue posible registrar la consulta. Inténtalo nuevamente.';
+    feedbackSuccess.value = false;
+  } finally {
+    submitting.value = false;
   }
-
-  submitting.value = false;
 }
 
 onMounted(() => {

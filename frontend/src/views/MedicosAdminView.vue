@@ -127,7 +127,9 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
-import { createMedico, deleteMedico, fetchMedicos, updateMedico } from '@/services/api';
+import { useRoute, useRouter } from 'vue-router';
+import { ApiAuthError, createMedico, deleteMedico, fetchMedicos, updateMedico } from '@/services/api';
+import { useAuthStore } from '@/stores/auth';
 import type { Medico } from '@/types/Medico';
 
 interface MedicoForm {
@@ -141,6 +143,10 @@ interface MedicoForm {
   especialidad: string;
   email: string;
 }
+
+const router = useRouter();
+const route = useRoute();
+const { clearSession } = useAuthStore();
 
 const medicos = ref<Medico[]>([]);
 const loading = ref(false);
@@ -172,6 +178,18 @@ const nombreMedico = (medico: Medico) =>
     .filter(Boolean)
     .join(' ');
 
+async function handleAuthError(error: unknown): Promise<boolean> {
+  if (error instanceof ApiAuthError) {
+    feedback.value = error.message;
+    feedbackSuccess.value = false;
+    clearSession();
+    await router.push({ name: 'login', query: { redirect: route.fullPath } });
+    return true;
+  }
+
+  return false;
+}
+
 function resetForm() {
   form.id = null;
   form.primerNombre = '';
@@ -199,16 +217,30 @@ function populateForm(medico: Medico) {
 
 async function loadMedicos() {
   loading.value = true;
-  const resultado = await fetchMedicos();
+  feedback.value = '';
 
-  if (resultado.value && resultado.data) {
-    medicos.value = resultado.data;
-  } else {
-    feedback.value = resultado.message;
+  try {
+    const resultado = await fetchMedicos();
+
+    if (resultado.value && resultado.data) {
+      medicos.value = resultado.data;
+    } else {
+      feedback.value = resultado.message;
+      feedbackSuccess.value = false;
+    }
+  } catch (error) {
+    if (await handleAuthError(error)) {
+      return;
+    }
+
+    feedback.value =
+      error instanceof Error
+        ? error.message
+        : 'No fue posible cargar la lista de médicos. Inténtalo más tarde.';
     feedbackSuccess.value = false;
+  } finally {
+    loading.value = false;
   }
-
-  loading.value = false;
 }
 
 function buildPayload() {
@@ -228,20 +260,33 @@ async function handleSubmit() {
   submitting.value = true;
   feedback.value = '';
 
-  const payload = buildPayload();
-  const resultado = isEditing.value && form.id !== null
-    ? await updateMedico(form.id, payload)
-    : await createMedico(payload);
+  try {
+    const payload = buildPayload();
+    const resultado =
+      isEditing.value && form.id !== null
+        ? await updateMedico(form.id, payload)
+        : await createMedico(payload);
 
-  feedback.value = resultado.message;
-  feedbackSuccess.value = resultado.value;
+    feedback.value = resultado.message;
+    feedbackSuccess.value = resultado.value;
 
-  if (resultado.value) {
-    await loadMedicos();
-    resetForm();
+    if (resultado.value) {
+      await loadMedicos();
+      resetForm();
+    }
+  } catch (error) {
+    if (await handleAuthError(error)) {
+      return;
+    }
+
+    feedback.value =
+      error instanceof Error
+        ? error.message
+        : 'No fue posible guardar la información del médico.';
+    feedbackSuccess.value = false;
+  } finally {
+    submitting.value = false;
   }
-
-  submitting.value = false;
 }
 
 function startEdit(medico: Medico) {
@@ -251,15 +296,28 @@ function startEdit(medico: Medico) {
 
 async function handleDeactivate(id: number) {
   submitting.value = true;
-  const resultado = await deleteMedico(id);
-  feedback.value = resultado.message;
-  feedbackSuccess.value = resultado.value;
 
-  if (resultado.value) {
-    await loadMedicos();
+  try {
+    const resultado = await deleteMedico(id);
+    feedback.value = resultado.message;
+    feedbackSuccess.value = resultado.value;
+
+    if (resultado.value) {
+      await loadMedicos();
+    }
+  } catch (error) {
+    if (await handleAuthError(error)) {
+      return;
+    }
+
+    feedback.value =
+      error instanceof Error
+        ? error.message
+        : 'No fue posible actualizar el estado del médico.';
+    feedbackSuccess.value = false;
+  } finally {
+    submitting.value = false;
   }
-
-  submitting.value = false;
 }
 
 onMounted(() => {

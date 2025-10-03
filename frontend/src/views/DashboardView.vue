@@ -52,7 +52,7 @@ type MenuOption = {
 };
 
 const router = useRouter();
-const { user, clearUser } = useAuthStore();
+const { user, clearSession } = useAuthStore();
 
 const menuOptions: MenuOption[] = [
   {
@@ -100,7 +100,7 @@ const fechaCreacion = computed(() => {
 });
 
 const handleLogout = async () => {
-  clearUser();
+  clearSession();
   await router.push({ name: 'login' });
 };
 </script>

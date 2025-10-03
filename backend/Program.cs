@@ -1,8 +1,14 @@
 using System.Data;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 using Clinica.Api.Infrastructure;
 using Clinica.Api.Models;
 using Clinica.Api.Models.Requests;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http;
+using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,12 +24,50 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod());
 });
 
+var jwtSection = builder.Configuration.GetSection("Jwt");
+var secretKey = jwtSection["Key"];
+if (string.IsNullOrWhiteSpace(secretKey))
+{
+    throw new InvalidOperationException("La clave secreta JWT no está configurada. Usa la sección Jwt:Key en appsettings.");
+}
+
+var issuer = jwtSection["Issuer"];
+var audience = jwtSection["Audience"];
+var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
+var validateIssuer = !string.IsNullOrWhiteSpace(issuer);
+var validateAudience = !string.IsNullOrWhiteSpace(audience);
+
+builder.Services
+    .AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = validateIssuer,
+            ValidIssuer = validateIssuer ? issuer : null,
+            ValidateAudience = validateAudience,
+            ValidAudience = validateAudience ? audience : null,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = signingKey,
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromMinutes(1)
+        };
+    });
+
+builder.Services.AddAuthorization();
+
 var app = builder.Build();
 
 app.UseSwagger();
 app.UseSwaggerUI();
 app.UseHttpsRedirection();
 app.UseCors();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapGet("/", () => Results.Redirect("/swagger"));
 
@@ -45,7 +89,7 @@ auth.MapPost("/login", async (
     DatabaseService db,
     IPasswordHasher<string> passwordHasher) =>
 {
-    var resultado = await db.ExecuteAsync(
+    var usuario = await db.ExecuteAsync(
         "procAuthLogin",
         parameters =>
         {
@@ -145,7 +189,7 @@ auth.MapPost("/login", async (
     });
 });
 
-var medicos = app.MapGroup("/api/medicos");
+var medicos = app.MapGroup("/api/medicos").RequireAuthorization();
 medicos.MapGet(string.Empty, async (DatabaseService db) =>
 {
     var resultado = await db.ExecuteAsync(
@@ -296,7 +340,7 @@ medicos.MapDelete("/{id:int}", async (int id, DatabaseService db) =>
     return Results.Ok(resultado);
 });
 
-var pacientes = app.MapGroup("/api/pacientes");
+var pacientes = app.MapGroup("/api/pacientes").RequireAuthorization();
 pacientes.MapGet(string.Empty, async (DatabaseService db) =>
 {
     var resultado = await db.ExecuteAsync(
@@ -434,7 +478,7 @@ pacientes.MapDelete("/{id:int}", async (int id, DatabaseService db) =>
     return Results.Ok(resultado);
 });
 
-var usuarios = app.MapGroup("/api/usuarios");
+var usuarios = app.MapGroup("/api/usuarios").RequireAuthorization();
 usuarios.MapGet(string.Empty, async (DatabaseService db) =>
 {
     var resultado = await db.ExecuteAsync(
@@ -577,7 +621,7 @@ usuarios.MapDelete("/{id:int}", async (int id, DatabaseService db) =>
     return Results.Ok(resultado);
 });
 
-var consultas = app.MapGroup("/api/consultas");
+var consultas = app.MapGroup("/api/consultas").RequireAuthorization();
 consultas.MapGet(string.Empty, async (DatabaseService db) =>
 {
     var resultado = await db.ExecuteAsync(
