@@ -1,14 +1,57 @@
 import axios, { type AxiosResponse } from 'axios';
+import { useAuthStore } from '@/stores/auth';
 import type { Resultado } from '@/types/Resultado';
+import type { AuthSession } from '@/types/AuthSession';
 import type { Usuario } from '@/types/Usuario';
 import type { Medico } from '@/types/Medico';
 import type { Paciente } from '@/types/Paciente';
 import type { Consulta } from '@/types/Consulta';
 import type { ConsultaHistorial } from '@/types/ConsultaHistorial';
 
+export class ApiAuthError extends Error {
+  constructor(public status: number, message: string) {
+    super(message);
+    this.name = 'ApiAuthError';
+  }
+}
+
 const http = axios.create({
   baseURL: '/api'
 });
+
+http.interceptors.request.use(config => {
+  const { token } = useAuthStore();
+  const authToken = token.value;
+
+  if (authToken) {
+    config.headers = {
+      ...(config.headers ?? {}),
+      Authorization: `Bearer ${authToken}`
+    };
+  }
+
+  return config;
+});
+
+http.interceptors.response.use(
+  response => response,
+  error => {
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status ?? 0;
+      if (status === 401 || status === 403) {
+        const data = error.response?.data as Resultado<unknown> | undefined;
+        const fallbackMessage =
+          status === 403
+            ? 'No tienes permisos para realizar esta acción.'
+            : 'Tu sesión ha expirado. Inicia sesión nuevamente.';
+        const message = data?.message || fallbackMessage;
+        return Promise.reject(new ApiAuthError(status, message));
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
 
 type RequestAction<T> = () => Promise<AxiosResponse<Resultado<T>>>;
 
@@ -44,6 +87,9 @@ async function safeRequest<T>(action: RequestAction<T>): Promise<Resultado<T>> {
     const response = await action();
     return response.data;
   } catch (error) {
+    if (error instanceof ApiAuthError) {
+      throw error;
+    }
     return buildErrorResult<T>(error);
   }
 }
@@ -53,8 +99,21 @@ export interface LoginPayload {
   password: string;
 }
 
-export function login(payload: LoginPayload): Promise<Resultado<Usuario>> {
-  return safeRequest(() => http.post<Resultado<Usuario>>('/auth/login', payload));
+export async function login(payload: LoginPayload): Promise<Resultado<AuthSession>> {
+  try {
+    const response = await http.post<Resultado<AuthSession>>('/auth/login', payload);
+    return response.data;
+  } catch (error) {
+    if (error instanceof ApiAuthError) {
+      return {
+        value: false,
+        message: error.message,
+        data: null
+      };
+    }
+
+    return buildErrorResult<AuthSession>(error);
+  }
 }
 
 export interface MedicoPayload {

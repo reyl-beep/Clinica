@@ -112,13 +112,16 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import {
+  ApiAuthError,
   createUsuario,
   deleteUsuario,
   fetchMedicos,
   fetchUsuarios,
   updateUsuario
 } from '@/services/api';
+import { useAuthStore } from '@/stores/auth';
 import type { Medico } from '@/types/Medico';
 import type { Usuario } from '@/types/Usuario';
 
@@ -129,6 +132,10 @@ interface UsuarioForm {
   nombreCompleto: string;
   idMedico: string;
 }
+
+const router = useRouter();
+const route = useRoute();
+const { clearSession } = useAuthStore();
 
 const usuarios = ref<Usuario[]>([]);
 const medicos = ref<Medico[]>([]);
@@ -166,6 +173,18 @@ const nombreMedicoAsignado = (id: number | null) => {
   return medico ? nombreMedico(medico) : 'Sin asignar';
 };
 
+async function handleAuthError(error: unknown): Promise<boolean> {
+  if (error instanceof ApiAuthError) {
+    feedback.value = error.message;
+    feedbackSuccess.value = false;
+    clearSession();
+    await router.push({ name: 'login', query: { redirect: route.fullPath } });
+    return true;
+  }
+
+  return false;
+}
+
 function resetForm() {
   form.id = null;
   form.correo = '';
@@ -185,23 +204,37 @@ function populateForm(usuario: Usuario) {
 
 async function loadData() {
   loading.value = true;
-  const [usuariosResultado, medicosResultado] = await Promise.all([
-    fetchUsuarios(),
-    fetchMedicos()
-  ]);
+  feedback.value = '';
 
-  if (usuariosResultado.value && usuariosResultado.data) {
-    usuarios.value = usuariosResultado.data;
-  } else {
-    feedback.value = usuariosResultado.message;
+  try {
+    const [usuariosResultado, medicosResultado] = await Promise.all([
+      fetchUsuarios(),
+      fetchMedicos()
+    ]);
+
+    if (usuariosResultado.value && usuariosResultado.data) {
+      usuarios.value = usuariosResultado.data;
+    } else {
+      feedback.value = usuariosResultado.message;
+      feedbackSuccess.value = false;
+    }
+
+    if (medicosResultado.value && medicosResultado.data) {
+      medicos.value = medicosResultado.data.filter(medico => medico.activo);
+    }
+  } catch (error) {
+    if (await handleAuthError(error)) {
+      return;
+    }
+
+    feedback.value =
+      error instanceof Error
+        ? error.message
+        : 'No fue posible cargar la información de usuarios y médicos.';
     feedbackSuccess.value = false;
+  } finally {
+    loading.value = false;
   }
-
-  if (medicosResultado.value && medicosResultado.data) {
-    medicos.value = medicosResultado.data.filter(medico => medico.activo);
-  }
-
-  loading.value = false;
 }
 
 function buildPayload() {
@@ -223,20 +256,33 @@ async function handleSubmit() {
   submitting.value = true;
   feedback.value = '';
 
-  const payload = buildPayload();
-  const resultado = isEditing.value && form.id !== null
-    ? await updateUsuario(form.id, payload)
-    : await createUsuario(payload);
+  try {
+    const payload = buildPayload();
+    const resultado =
+      isEditing.value && form.id !== null
+        ? await updateUsuario(form.id, payload)
+        : await createUsuario(payload);
 
-  feedback.value = resultado.message;
-  feedbackSuccess.value = resultado.value;
+    feedback.value = resultado.message;
+    feedbackSuccess.value = resultado.value;
 
-  if (resultado.value) {
-    await loadData();
-    resetForm();
+    if (resultado.value) {
+      await loadData();
+      resetForm();
+    }
+  } catch (error) {
+    if (await handleAuthError(error)) {
+      return;
+    }
+
+    feedback.value =
+      error instanceof Error
+        ? error.message
+        : 'No fue posible guardar la información del usuario.';
+    feedbackSuccess.value = false;
+  } finally {
+    submitting.value = false;
   }
-
-  submitting.value = false;
 }
 
 function startEdit(usuario: Usuario) {
@@ -246,15 +292,28 @@ function startEdit(usuario: Usuario) {
 
 async function handleDeactivate(id: number) {
   submitting.value = true;
-  const resultado = await deleteUsuario(id);
-  feedback.value = resultado.message;
-  feedbackSuccess.value = resultado.value;
 
-  if (resultado.value) {
-    await loadData();
+  try {
+    const resultado = await deleteUsuario(id);
+    feedback.value = resultado.message;
+    feedbackSuccess.value = resultado.value;
+
+    if (resultado.value) {
+      await loadData();
+    }
+  } catch (error) {
+    if (await handleAuthError(error)) {
+      return;
+    }
+
+    feedback.value =
+      error instanceof Error
+        ? error.message
+        : 'No fue posible actualizar el estado del usuario.';
+    feedbackSuccess.value = false;
+  } finally {
+    submitting.value = false;
   }
-
-  submitting.value = false;
 }
 
 onMounted(() => {
