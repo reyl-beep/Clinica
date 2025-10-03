@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Data;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -160,12 +161,7 @@ auth.MapPost("/login", async (
                 });
             }
 
-            return Results.Ok(new Resultado
-            {
-                Value = true,
-                Message = "Inicio de sesión exitoso.",
-                Data = authUser.Usuario
-            });
+            return Results.Ok(BuildAuthSuccess(authUser.Usuario, signingKey, issuer, audience));
         }
 
         return Results.Ok(new Resultado
@@ -181,12 +177,7 @@ auth.MapPost("/login", async (
         await ActualizarPasswordHashAsync(db, authUser.Usuario, newHash);
     }
 
-    return Results.Ok(new Resultado
-    {
-        Value = true,
-        Message = "Inicio de sesión exitoso.",
-        Data = authUser.Usuario
-    });
+    return Results.Ok(BuildAuthSuccess(authUser.Usuario, signingKey, issuer, audience));
 });
 
 var medicos = app.MapGroup("/api/medicos").RequireAuthorization();
@@ -816,6 +807,49 @@ static Task<Resultado> ActualizarPasswordHashAsync(DatabaseService db, UsuarioDt
             parameters.Add("@pNombreCompleto", SqlDbType.VarChar, 300).Value = usuario.NombreCompleto;
             parameters.Add("@pIdMedico", SqlDbType.Int).Value = (object?)usuario.IdMedico ?? DBNull.Value;
         });
+}
+
+static Resultado BuildAuthSuccess(UsuarioDto usuario, SymmetricSecurityKey signingKey, string? issuer, string? audience)
+{
+    var token = GenerateJwtToken(usuario, signingKey, issuer, audience);
+
+    return new Resultado
+    {
+        Value = true,
+        Message = "Inicio de sesión exitoso.",
+        Data = new AuthSessionDto
+        {
+            Token = token,
+            Usuario = usuario
+        }
+    };
+}
+
+static string GenerateJwtToken(UsuarioDto usuario, SymmetricSecurityKey signingKey, string? issuer, string? audience)
+{
+    var credentials = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256);
+
+    var claims = new List<Claim>
+    {
+        new(JwtRegisteredClaimNames.Sub, usuario.Correo),
+        new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+        new(ClaimTypes.NameIdentifier, usuario.Id.ToString()),
+        new(ClaimTypes.Name, usuario.NombreCompleto)
+    };
+
+    if (usuario.IdMedico.HasValue)
+    {
+        claims.Add(new Claim("idMedico", usuario.IdMedico.Value.ToString()));
+    }
+
+    var token = new JwtSecurityToken(
+        issuer: issuer,
+        audience: audience,
+        claims: claims,
+        expires: DateTime.UtcNow.AddHours(2),
+        signingCredentials: credentials);
+
+    return new JwtSecurityTokenHandler().WriteToken(token);
 }
 
 internal record AuthenticatedUser(UsuarioDto Usuario, string PasswordHash);
