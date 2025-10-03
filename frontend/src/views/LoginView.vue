@@ -1,7 +1,8 @@
 <template>
   <div class="login">
     <section class="login-card">
-      <header>
+      <header class="login-card__header">
+        <img class="login-card__logo" src="/logo-d.svg" alt="Logotipo de Clínica del Rey" />
         <p class="eyebrow">Acceso seguro</p>
         <h1>Inicia sesión en Clínica del Rey</h1>
         <p class="subtitle">
@@ -132,6 +133,18 @@ const handleSubmit = async () => {
   box-shadow: var(--shadow-xl);
   display: grid;
   gap: 1.75rem;
+}
+
+.login-card__header {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: start;
+}
+
+.login-card__logo {
+  width: clamp(72px, 12vw, 96px);
+  height: auto;
+  filter: drop-shadow(0 12px 28px rgba(37, 99, 235, 0.35));
 }
 
 .eyebrow {

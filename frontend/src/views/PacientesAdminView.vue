@@ -71,12 +71,13 @@
 
         <div v-if="loading" class="placeholder">Cargando pacientes...</div>
 
-        <table v-else class="table">
-          <thead>
-            <tr>
-              <th scope="col">Nombre</th>
-              <th scope="col">Teléfono</th>
-              <th scope="col">Estado</th>
+        <div v-else class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr>
+                <th scope="col">Nombre</th>
+                <th scope="col">Teléfono</th>
+                <th scope="col">Estado</th>
               <th scope="col">Acciones</th>
             </tr>
           </thead>
@@ -102,7 +103,8 @@
               </td>
             </tr>
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
     </div>
   </section>
@@ -304,46 +306,57 @@ onMounted(() => {
 
 .form__grid {
   display: grid;
-  gap: 1rem;
+  gap: clamp(0.75rem, 2vw, 1.25rem);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   border: none;
   margin: 0;
   padding: 0;
 }
 
-@media (min-width: 640px) {
-  .form__grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .field--wide {
-    grid-column: span 2;
-  }
+.field--wide {
+  grid-column: 1 / -1;
 }
 
 .field {
   display: grid;
-  gap: 0.5rem;
+  gap: 0.45rem;
 }
 
 .field span {
   font-weight: 600;
+  color: var(--text-muted);
+  font-size: 0.95rem;
 }
 
 input[type='text'],
 input[type='tel'] {
-  border-radius: 16px;
-  border: 1px solid var(--border-subtle);
-  padding: 0.85rem 1rem;
+  border-radius: 18px;
+  border: 1px solid var(--border-strong);
+  padding: 0.95rem 1.1rem;
   font-size: 1rem;
-  background: var(--surface-subtle);
+  background: var(--surface-glass);
   color: var(--text-primary);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(14px);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.9;
 }
 
 input:focus {
   outline: none;
   border-color: var(--brand-primary);
   box-shadow: 0 0 0 4px var(--focus-ring);
+  transform: translateY(-2px);
+}
+
+:global(:root[data-theme='dark']) input[type='text'],
+:global(:root[data-theme='dark']) input[type='tel'] {
+  background: rgba(15, 23, 42, 0.75);
+  box-shadow: 0 18px 40px rgba(7, 37, 64, 0.45);
 }
 
 .form__actions {
@@ -420,17 +433,57 @@ input:focus {
   color: var(--text-muted);
 }
 
+
+.table-wrapper {
+  border-radius: 22px;
+  background: var(--surface-glass);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  backdrop-filter: blur(14px);
+}
+
 .table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 0.95rem;
 }
 
-.table th,
-.table td {
-  padding: 0.85rem 1rem;
-  text-align: left;
+.table thead th {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  background: rgba(37, 99, 235, 0.08);
+  padding: 0.95rem 1.1rem;
   border-bottom: 1px solid var(--border-subtle);
+}
+
+.table tbody td {
+  padding: 1rem 1.1rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.table tbody tr:nth-child(even) {
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.table tbody tr:hover {
+  background: rgba(37, 99, 235, 0.12);
+}
+
+:global(:root[data-theme='dark']) .table thead th {
+  background: rgba(37, 99, 235, 0.24);
+  color: #e2e8f0;
+}
+
+:global(:root[data-theme='dark']) .table tbody tr:nth-child(even) {
+  background: rgba(15, 23, 42, 0.55);
+}
+
+:global(:root[data-theme='dark']) .table tbody tr:hover {
+  background: rgba(37, 99, 235, 0.3);
 }
 
 .actions {
