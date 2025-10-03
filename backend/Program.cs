@@ -553,6 +553,51 @@ consultas.MapGet("/{id:int}", async (int id, DatabaseService db) =>
     return Results.Ok(resultado);
 });
 
+consultas.MapGet("/historial", async (
+    int? idMedico,
+    int? idPaciente,
+    DateTime? fechaInicio,
+    DateTime? fechaFin,
+    DatabaseService db) =>
+{
+    var resultado = await db.ExecuteAsync(
+        "procConsultasHistorial",
+        parameters =>
+        {
+            var medicoParam = parameters.Add("@pIdMedico", SqlDbType.Int);
+            medicoParam.Value = (object?)idMedico ?? DBNull.Value;
+
+            var pacienteParam = parameters.Add("@pIdPaciente", SqlDbType.Int);
+            pacienteParam.Value = (object?)idPaciente ?? DBNull.Value;
+
+            parameters.Add("@pFechaInicio", SqlDbType.DateTime).Value = (object?)fechaInicio ?? DBNull.Value;
+            parameters.Add("@pFechaFin", SqlDbType.DateTime).Value = (object?)fechaFin ?? DBNull.Value;
+        },
+        async reader =>
+        {
+            var items = new List<ConsultaHistorialDto>();
+            while (await reader.ReadAsync())
+            {
+                items.Add(new ConsultaHistorialDto
+                {
+                    Id = reader.GetInt32("Id"),
+                    IdMedico = reader.GetInt32("IdMedico"),
+                    IdPaciente = reader.GetInt32("IdPaciente"),
+                    NombreMedico = reader.GetString("NombreMedico"),
+                    NombrePaciente = reader.GetString("NombrePaciente"),
+                    Sintomas = reader.GetNullableString("Sintomas"),
+                    Recomendaciones = reader.GetNullableString("Recomendaciones"),
+                    Diagnostico = reader.GetNullableString("Diagnostico"),
+                    FechaConsulta = reader.GetDateTime("FechaConsulta")
+                });
+            }
+
+            return items;
+        });
+
+    return Results.Ok(resultado);
+});
+
 consultas.MapPost(string.Empty, async (ConsultaCreateRequest request, DatabaseService db) =>
 {
     var resultado = await db.ExecuteAsync(

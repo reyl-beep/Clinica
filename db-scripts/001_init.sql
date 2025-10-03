@@ -661,6 +661,53 @@ BEGIN
 END;
 GO
 
+IF OBJECT_ID('dbo.procConsultasHistorial', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.procConsultasHistorial;
+GO
+CREATE PROCEDURE dbo.procConsultasHistorial
+    @pIdMedico INT = NULL,
+    @pIdPaciente INT = NULL,
+    @pFechaInicio DATETIME = NULL,
+    @pFechaFin DATETIME = NULL,
+    @pResultado BIT OUTPUT,
+    @pMsg VARCHAR(500) OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    BEGIN TRY
+        SELECT
+            c.Id,
+            c.IdMedico,
+            c.IdPaciente,
+            LTRIM(RTRIM(CONCAT_WS(' ', m.PrimerNombre, m.SegundoNombre, m.ApellidoPaterno, m.ApellidoMaterno))) AS NombreMedico,
+            LTRIM(RTRIM(CONCAT_WS(' ', p.PrimerNombre, p.SegundoNombre, p.ApellidoPaterno, p.ApellidoMaterno))) AS NombrePaciente,
+            c.Sintomas,
+            c.Recomendaciones,
+            c.Diagnostico,
+            c.FechaConsulta
+        FROM dbo.Consultas AS c
+            INNER JOIN dbo.CatMedicos AS m ON c.IdMedico = m.Id
+            INNER JOIN dbo.CatPacientes AS p ON c.IdPaciente = p.Id
+        WHERE (@pIdMedico IS NULL OR c.IdMedico = @pIdMedico)
+          AND (@pIdPaciente IS NULL OR c.IdPaciente = @pIdPaciente)
+          AND (@pFechaInicio IS NULL OR c.FechaConsulta >= @pFechaInicio)
+          AND (
+              @pFechaFin IS NULL
+              OR c.FechaConsulta < DATEADD(DAY, 1, CAST(@pFechaFin AS DATE))
+          )
+        ORDER BY c.FechaConsulta DESC;
+
+        SET @pResultado = 1;
+        SET @pMsg = 'Historial de consultas obtenido correctamente.';
+    END TRY
+    BEGIN CATCH
+        SET @pResultado = 0;
+        SET @pMsg = ERROR_MESSAGE();
+    END CATCH
+END;
+GO
+
 IF OBJECT_ID('dbo.procConsultasIns', 'P') IS NOT NULL
     DROP PROCEDURE dbo.procConsultasIns;
 GO
