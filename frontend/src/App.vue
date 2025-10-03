@@ -97,7 +97,7 @@ type Theme = 'light' | 'dark';
 
 const route = useRoute();
 const router = useRouter();
-const { isAuthenticated, clearUser } = useAuthStore();
+const { isAuthenticated, clearSession } = useAuthStore();
 const theme = ref<Theme>('light');
 const isDark = computed(() => theme.value === 'dark');
 const themeStorageKey = 'clinica-del-rey:theme';
@@ -159,7 +159,7 @@ watch(theme, value => {
 });
 
 const handleLogout = async () => {
-  clearUser();
+  clearSession();
   await router.push({ name: 'home' });
 };
 </script>

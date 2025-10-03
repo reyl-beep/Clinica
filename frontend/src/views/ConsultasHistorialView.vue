@@ -92,11 +92,14 @@
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import {
+  ApiAuthError,
   fetchConsultasHistorial,
   fetchMedicos,
   fetchPacientes
 } from '@/services/api';
+import { useAuthStore } from '@/stores/auth';
 import type { ConsultaHistorial } from '@/types/ConsultaHistorial';
 import type { Medico } from '@/types/Medico';
 import type { Paciente } from '@/types/Paciente';
@@ -107,6 +110,10 @@ interface Filters {
   fechaInicio: string;
   fechaFin: string;
 }
+
+const router = useRouter();
+const route = useRoute();
+const { clearSession } = useAuthStore();
 
 const filters = reactive<Filters>({
   idMedico: '',
@@ -161,18 +168,42 @@ function formatFecha(value: string) {
   });
 }
 
-async function loadCatalogs() {
-  const [medicosResultado, pacientesResultado] = await Promise.all([
-    fetchMedicos(),
-    fetchPacientes()
-  ]);
-
-  if (medicosResultado.value && medicosResultado.data) {
-    medicos.value = medicosResultado.data.filter(medico => medico.activo);
+async function handleAuthError(error: unknown): Promise<boolean> {
+  if (error instanceof ApiAuthError) {
+    feedback.value = error.message;
+    feedbackSuccess.value = false;
+    clearSession();
+    await router.push({ name: 'login', query: { redirect: route.fullPath } });
+    return true;
   }
 
-  if (pacientesResultado.value && pacientesResultado.data) {
-    pacientes.value = pacientesResultado.data.filter(paciente => paciente.activo);
+  return false;
+}
+
+async function loadCatalogs() {
+  try {
+    const [medicosResultado, pacientesResultado] = await Promise.all([
+      fetchMedicos(),
+      fetchPacientes()
+    ]);
+
+    if (medicosResultado.value && medicosResultado.data) {
+      medicos.value = medicosResultado.data.filter(medico => medico.activo);
+    }
+
+    if (pacientesResultado.value && pacientesResultado.data) {
+      pacientes.value = pacientesResultado.data.filter(paciente => paciente.activo);
+    }
+  } catch (error) {
+    if (await handleAuthError(error)) {
+      return;
+    }
+
+    feedback.value =
+      error instanceof Error
+        ? error.message
+        : 'No fue posible cargar los catálogos de médicos y pacientes.';
+    feedbackSuccess.value = false;
   }
 }
 
@@ -180,24 +211,37 @@ async function handleFilter() {
   loading.value = true;
   feedback.value = '';
 
-  const resultado = await fetchConsultasHistorial({
-    idMedico: filters.idMedico ? Number(filters.idMedico) : undefined,
-    idPaciente: filters.idPaciente ? Number(filters.idPaciente) : undefined,
-    fechaInicio: filters.fechaInicio || undefined,
-    fechaFin: filters.fechaFin || undefined
-  });
+  try {
+    const resultado = await fetchConsultasHistorial({
+      idMedico: filters.idMedico ? Number(filters.idMedico) : undefined,
+      idPaciente: filters.idPaciente ? Number(filters.idPaciente) : undefined,
+      fechaInicio: filters.fechaInicio || undefined,
+      fechaFin: filters.fechaFin || undefined
+    });
 
-  if (resultado.value && resultado.data) {
-    historial.value = resultado.data;
-    feedback.value = resultado.message;
-    feedbackSuccess.value = true;
-  } else {
+    if (resultado.value && resultado.data) {
+      historial.value = resultado.data;
+      feedback.value = resultado.message;
+      feedbackSuccess.value = true;
+    } else {
+      historial.value = [];
+      feedback.value = resultado.message;
+      feedbackSuccess.value = false;
+    }
+  } catch (error) {
+    if (await handleAuthError(error)) {
+      return;
+    }
+
     historial.value = [];
-    feedback.value = resultado.message;
+    feedback.value =
+      error instanceof Error
+        ? error.message
+        : 'No fue posible consultar el historial. Intenta nuevamente.';
     feedbackSuccess.value = false;
+  } finally {
+    loading.value = false;
   }
-
-  loading.value = false;
 }
 
 onMounted(async () => {
