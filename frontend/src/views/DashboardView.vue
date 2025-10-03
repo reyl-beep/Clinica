@@ -66,6 +66,11 @@ const menuOptions: MenuOption[] = [
     routeName: 'consultas-historial'
   },
   {
+    label: 'Gestión de pacientes',
+    description: 'Registra nuevos pacientes y actualiza sus datos de contacto.',
+    routeName: 'pacientes-admin'
+  },
+  {
     label: 'Gestión de médicos',
     description: 'Crea, edita y activa o desactiva a los médicos de la clínica.',
     routeName: 'medicos-admin'

@@ -119,6 +119,35 @@ export function fetchPacientes(): Promise<Resultado<Paciente[]>> {
   return safeRequest(() => http.get<Resultado<Paciente[]>>('/pacientes'));
 }
 
+export function fetchPaciente(id: number): Promise<Resultado<Paciente | null>> {
+  return safeRequest(() => http.get<Resultado<Paciente | null>>(`/pacientes/${id}`));
+}
+
+export interface PacientePayload {
+  primerNombre: string;
+  segundoNombre?: string | null;
+  apellidoPaterno: string;
+  apellidoMaterno?: string | null;
+  telefono?: string | null;
+}
+
+export function createPaciente(
+  payload: PacientePayload
+): Promise<Resultado<{ id: number } | null>> {
+  return safeRequest(() => http.post<Resultado<{ id: number } | null>>('/pacientes', payload));
+}
+
+export function updatePaciente(
+  id: number,
+  payload: PacientePayload
+): Promise<Resultado<{ id: number } | null>> {
+  return safeRequest(() => http.put<Resultado<{ id: number } | null>>(`/pacientes/${id}`, payload));
+}
+
+export function deletePaciente(id: number): Promise<Resultado<{ id: number } | null>> {
+  return safeRequest(() => http.delete<Resultado<{ id: number } | null>>(`/pacientes/${id}`));
+}
+
 export interface ConsultaPayload {
   idMedico: number;
   idPaciente: number;
