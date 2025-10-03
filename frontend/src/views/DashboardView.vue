@@ -9,10 +9,10 @@
       <nav class="sidebar__nav" aria-label="Secciones principales">
         <ul>
           <li v-for="option in menuOptions" :key="option.label">
-            <button type="button" class="sidebar__nav-item">
+            <RouterLink class="sidebar__nav-item" :to="{ name: option.routeName }">
               <span class="sidebar__nav-title">{{ option.label }}</span>
               <span class="sidebar__nav-description">{{ option.description }}</span>
-            </button>
+            </RouterLink>
           </li>
         </ul>
       </nav>
@@ -48,6 +48,7 @@ import { useAuthStore } from '@/stores/auth';
 type MenuOption = {
   label: string;
   description: string;
+  routeName: string;
 };
 
 const router = useRouter();
@@ -56,19 +57,23 @@ const { user, clearUser } = useAuthStore();
 const menuOptions: MenuOption[] = [
   {
     label: 'Crear consultas',
-    description: 'Selecciona médico y paciente, captura la información y guarda la consulta.'
+    description: 'Selecciona médico y paciente, captura la información y guarda la consulta.',
+    routeName: 'consultas-create'
   },
   {
     label: 'Historial de consultas',
-    description: 'Revisa las consultas filtrando por médico, paciente o rangos de fechas.'
+    description: 'Revisa las consultas filtrando por médico, paciente o rangos de fechas.',
+    routeName: 'consultas-historial'
   },
   {
     label: 'Gestión de médicos',
-    description: 'Crea, edita y activa o desactiva a los médicos de la clínica.'
+    description: 'Crea, edita y activa o desactiva a los médicos de la clínica.',
+    routeName: 'medicos-admin'
   },
   {
     label: 'Gestión de usuarios',
-    description: 'Administra usuarios del sistema y resguarda contraseñas en formato hash.'
+    description: 'Administra usuarios del sistema y resguarda contraseñas en formato hash.',
+    routeName: 'usuarios-admin'
   }
 ];
 
