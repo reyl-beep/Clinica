@@ -2,12 +2,14 @@ using System.Data;
 using Clinica.Api.Infrastructure;
 using Clinica.Api.Models;
 using Clinica.Api.Models.Requests;
+using Microsoft.AspNetCore.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton<DatabaseService>();
+builder.Services.AddSingleton<IPasswordHasher<string>, PasswordHasher<string>>();
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
@@ -38,20 +40,22 @@ app.MapPost("/api/demo", (DemoRequest request) =>
 });
 
 var auth = app.MapGroup("/api/auth");
-auth.MapPost("/login", async (LoginRequest request, DatabaseService db) =>
+auth.MapPost("/login", async (
+    LoginRequest request,
+    DatabaseService db,
+    IPasswordHasher<string> passwordHasher) =>
 {
     var resultado = await db.ExecuteAsync(
         "procAuthLogin",
         parameters =>
         {
             parameters.Add("@pCorreo", SqlDbType.VarChar, 200).Value = request.Correo;
-            parameters.Add("@pPassword", SqlDbType.VarChar, 500).Value = request.Password;
         },
         async reader =>
         {
             if (await reader.ReadAsync())
             {
-                return new UsuarioDto
+                var usuario = new UsuarioDto
                 {
                     Id = reader.GetInt32("Id"),
                     Correo = reader.GetString("Correo"),
@@ -60,12 +64,85 @@ auth.MapPost("/login", async (LoginRequest request, DatabaseService db) =>
                     Activo = reader.GetBoolean("Activo"),
                     FechaCreacion = reader.GetDateTime("FechaCreacion")
                 };
+
+                return new AuthenticatedUser(usuario, reader.GetString("PasswordHash"));
             }
 
             return null;
         });
 
-    return Results.Ok(resultado);
+    if (!resultado.Value)
+    {
+        return Results.Ok(resultado);
+    }
+
+    if (resultado.Data is not AuthenticatedUser authUser)
+    {
+        return Results.Ok(new Resultado
+        {
+            Value = false,
+            Message = "Usuario o contraseña incorrectos."
+        });
+    }
+
+    if (!authUser.Usuario.Activo)
+    {
+        return Results.Ok(new Resultado
+        {
+            Value = false,
+            Message = "La cuenta se encuentra inactiva."
+        });
+    }
+
+    var verification = passwordHasher.VerifyHashedPassword(
+        authUser.Usuario.Correo,
+        authUser.PasswordHash,
+        request.Password);
+
+    if (verification == PasswordVerificationResult.Failed)
+    {
+        if (authUser.PasswordHash == request.Password)
+        {
+            // Compatibilidad: migramos contraseñas almacenadas en texto plano.
+            var newHash = passwordHasher.HashPassword(authUser.Usuario.Correo, request.Password);
+            var migrationResult = await ActualizarPasswordHashAsync(db, authUser.Usuario, newHash);
+
+            if (!migrationResult.Value)
+            {
+                return Results.Ok(new Resultado
+                {
+                    Value = false,
+                    Message = "No fue posible actualizar la contraseña del usuario."
+                });
+            }
+
+            return Results.Ok(new Resultado
+            {
+                Value = true,
+                Message = "Inicio de sesión exitoso.",
+                Data = authUser.Usuario
+            });
+        }
+
+        return Results.Ok(new Resultado
+        {
+            Value = false,
+            Message = "Usuario o contraseña incorrectos."
+        });
+    }
+
+    if (verification == PasswordVerificationResult.SuccessRehashNeeded)
+    {
+        var newHash = passwordHasher.HashPassword(authUser.Usuario.Correo, request.Password);
+        await ActualizarPasswordHashAsync(db, authUser.Usuario, newHash);
+    }
+
+    return Results.Ok(new Resultado
+    {
+        Value = true,
+        Message = "Inicio de sesión exitoso.",
+        Data = authUser.Usuario
+    });
 });
 
 var medicos = app.MapGroup("/api/medicos");
@@ -419,14 +496,19 @@ usuarios.MapGet("/{id:int}", async (int id, DatabaseService db) =>
     return Results.Ok(resultado);
 });
 
-usuarios.MapPost(string.Empty, async (UsuarioCreateRequest request, DatabaseService db) =>
+usuarios.MapPost(string.Empty, async (
+    UsuarioCreateRequest request,
+    DatabaseService db,
+    IPasswordHasher<string> passwordHasher) =>
 {
+    var hashedPassword = passwordHasher.HashPassword(request.Correo, request.Password);
+
     var resultado = await db.ExecuteAsync(
         "procCatUsuariosIns",
         parameters =>
         {
             parameters.Add("@pCorreo", SqlDbType.VarChar, 200).Value = request.Correo;
-            parameters.Add("@pPassword", SqlDbType.VarChar, 500).Value = request.Password;
+            parameters.Add("@pPasswordHash", SqlDbType.VarChar, 500).Value = hashedPassword;
             parameters.Add("@pNombreCompleto", SqlDbType.VarChar, 300).Value = request.NombreCompleto;
             parameters.Add("@pIdMedico", SqlDbType.Int).Value = (object?)request.IdMedico ?? DBNull.Value;
         },
@@ -443,15 +525,21 @@ usuarios.MapPost(string.Empty, async (UsuarioCreateRequest request, DatabaseServ
     return Results.Ok(resultado);
 });
 
-usuarios.MapPut("/{id:int}", async (int id, UsuarioCreateRequest request, DatabaseService db) =>
+usuarios.MapPut("/{id:int}", async (
+    int id,
+    UsuarioCreateRequest request,
+    DatabaseService db,
+    IPasswordHasher<string> passwordHasher) =>
 {
+    var hashedPassword = passwordHasher.HashPassword(request.Correo, request.Password);
+
     var resultado = await db.ExecuteAsync(
         "procCatUsuariosUpd",
         parameters =>
         {
             parameters.Add("@pId", SqlDbType.Int).Value = id;
             parameters.Add("@pCorreo", SqlDbType.VarChar, 200).Value = request.Correo;
-            parameters.Add("@pPassword", SqlDbType.VarChar, 500).Value = request.Password;
+            parameters.Add("@pPasswordHash", SqlDbType.VarChar, 500).Value = hashedPassword;
             parameters.Add("@pNombreCompleto", SqlDbType.VarChar, 300).Value = request.NombreCompleto;
             parameters.Add("@pIdMedico", SqlDbType.Int).Value = (object?)request.IdMedico ?? DBNull.Value;
         },
@@ -671,5 +759,21 @@ consultas.MapDelete("/{id:int}", async (int id, DatabaseService db) =>
 
     return Results.Ok(resultado);
 });
+
+static Task<Resultado> ActualizarPasswordHashAsync(DatabaseService db, UsuarioDto usuario, string hashedPassword)
+{
+    return db.ExecuteAsync(
+        "procCatUsuariosUpd",
+        parameters =>
+        {
+            parameters.Add("@pId", SqlDbType.Int).Value = usuario.Id;
+            parameters.Add("@pCorreo", SqlDbType.VarChar, 200).Value = usuario.Correo;
+            parameters.Add("@pPasswordHash", SqlDbType.VarChar, 500).Value = hashedPassword;
+            parameters.Add("@pNombreCompleto", SqlDbType.VarChar, 300).Value = usuario.NombreCompleto;
+            parameters.Add("@pIdMedico", SqlDbType.Int).Value = (object?)usuario.IdMedico ?? DBNull.Value;
+        });
+}
+
+internal record AuthenticatedUser(UsuarioDto Usuario, string PasswordHash);
 
 app.Run();

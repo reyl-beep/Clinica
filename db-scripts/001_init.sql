@@ -455,7 +455,7 @@ IF OBJECT_ID('dbo.procCatUsuariosIns', 'P') IS NOT NULL
 GO
 CREATE PROCEDURE dbo.procCatUsuariosIns
     @pCorreo VARCHAR(200),
-    @pPassword VARCHAR(500),
+    @pPasswordHash VARCHAR(500),
     @pNombreCompleto VARCHAR(300),
     @pIdMedico INT = NULL,
     @pResultado BIT OUTPUT,
@@ -477,7 +477,7 @@ BEGIN
         VALUES
         (
             @pCorreo,
-            @pPassword,
+            @pPasswordHash,
             @pNombreCompleto,
             @pIdMedico
         );
@@ -505,7 +505,7 @@ GO
 CREATE PROCEDURE dbo.procCatUsuariosUpd
     @pId INT,
     @pCorreo VARCHAR(200),
-    @pPassword VARCHAR(500),
+    @pPasswordHash VARCHAR(500),
     @pNombreCompleto VARCHAR(300),
     @pIdMedico INT = NULL,
     @pResultado BIT OUTPUT,
@@ -520,7 +520,7 @@ BEGIN
         UPDATE dbo.CatUsuarios
         SET
             Correo = @pCorreo,
-            Password = @pPassword,
+            Password = @pPasswordHash,
             NombreCompleto = @pNombreCompleto,
             IdMedico = @pIdMedico
         WHERE Id = @pId;
@@ -578,7 +578,6 @@ IF OBJECT_ID('dbo.procAuthLogin', 'P') IS NOT NULL
 GO
 CREATE PROCEDURE dbo.procAuthLogin
     @pCorreo VARCHAR(200),
-    @pPassword VARCHAR(500),
     @pResultado BIT OUTPUT,
     @pMsg VARCHAR(500) OUTPUT
 AS
@@ -590,6 +589,7 @@ BEGIN
         (
             Id INT,
             Correo VARCHAR(200),
+            PasswordHash VARCHAR(500),
             NombreCompleto VARCHAR(300),
             IdMedico INT NULL,
             Activo BIT,
@@ -600,27 +600,35 @@ BEGIN
         SELECT TOP 1
             Id,
             Correo,
+            Password,
             NombreCompleto,
             IdMedico,
             Activo,
             FechaCreacion
         FROM dbo.CatUsuarios
         WHERE Correo = @pCorreo
-          AND Password = @pPassword
           AND Activo = 1;
 
         IF EXISTS (SELECT 1 FROM @Usuarios)
         BEGIN
             SET @pResultado = 1;
-            SET @pMsg = 'Inicio de sesión exitoso.';
+            SET @pMsg = 'Usuario localizado.';
         END
         ELSE
         BEGIN
             SET @pResultado = 0;
-            SET @pMsg = 'Credenciales inválidas.';
+            SET @pMsg = 'Usuario o contraseña incorrectos.';
         END
 
-        SELECT * FROM @Usuarios;
+        SELECT
+            Id,
+            Correo,
+            PasswordHash,
+            NombreCompleto,
+            IdMedico,
+            Activo,
+            FechaCreacion
+        FROM @Usuarios;
     END TRY
     BEGIN CATCH
         SET @pResultado = 0;
